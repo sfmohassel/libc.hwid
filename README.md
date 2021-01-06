@@ -30,7 +30,7 @@ The nuget package is written as a __.Net Standard 2.0__ class library, so you ca
 - .Net Framework 4.6.1+
 
 Just add this [nuget package](https://www.nuget.org/packages/libc.hwid/) to your project and use as below:
-```
+```csharp
 var hardwareId = libc.hwid.HwId.Generate();
 ```
 Take a look at tests to understand the usage better
