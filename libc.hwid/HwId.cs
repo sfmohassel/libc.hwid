@@ -63,26 +63,57 @@ namespace libc.hwid {
             var res = line.Substring(line.IndexOf(find, StringComparison.Ordinal) + find.Length).Trim(' ', '\t');
             return res;
         }
-        private static string getInfo(Hardware hw) {
-            switch (hw) {
-                case Hardware.Motherboard when AppInfo.IsLinux: {
-                    var result = dmidecode("dmidecode -t 2", "Manufacturer");
-                    return result;
-                }
+        public static string GetIoregOutput(string node)
+        {
+            Process proc = new Process();
+            ProcessStartInfo psi = new ProcessStartInfo
+            {
+                FileName = "/bin/sh"
+            };
+            var command = @"/usr/sbin/ioreg -rd1 -c IOPlatformExpertDevice | awk -F'\""' '/" + node + "/{ print $(NF-1) }'";
+            psi.Arguments = $"-c \"{command}\"";
+            psi.WindowStyle = ProcessWindowStyle.Hidden;
+            psi.RedirectStandardOutput = true;
+            psi.UseShellExecute = false;
+            string result = null;
+            proc.StartInfo = psi;
+
+            proc.OutputDataReceived += new DataReceivedEventHandler((s, e) => {
+                if (!String.IsNullOrEmpty(e.Data))
+                    result = e.Data;
+            });
+
+            proc.Start();
+            proc.BeginOutputReadLine();
+            proc.WaitForExit();
+            return result;
+        }
+        private static string getInfo(Hardware hw)
+        {
+            switch (hw)
+            {
+                case Hardware.Motherboard when AppInfo.IsLinux:
+                    {
+                        var result = dmidecode("dmidecode -t 2", "Manufacturer");
+                        return result;
+                    }
                 case Hardware.Motherboard when AppInfo.IsWindows:
                     return wmi("Win32_BaseBoard", "Manufacturer");
                 case Hardware.Motherboard when AppInfo.IsMacOS:
-                    throw new NotImplementedException();
-                case Hardware.CPUID when AppInfo.IsLinux: {
-                    var res = dmidecode("dmidecode -t 4", "ID");
-                    var parts = res.Split(' ').Reverse();
-                    var result = string.Join("", parts);
-                    return result;
-                }
+                    var macSerial = GetIoregOutput("IOPlatformSerialNumber");
+                    return macSerial;
+                case Hardware.CPUID when AppInfo.IsLinux:
+                    {
+                        var res = dmidecode("dmidecode -t 4", "ID");
+                        var parts = res.Split(' ').Reverse();
+                        var result = string.Join("", parts);
+                        return result;
+                    }
                 case Hardware.CPUID when AppInfo.IsWindows:
                     return wmi("Win32_Processor", "ProcessorId");
                 case Hardware.CPUID when AppInfo.IsMacOS:
-                    throw new NotImplementedException();
+                    var uuid = GetIoregOutput("IOPlatformUUID");
+                    return uuid;
                 default:
                     throw new InvalidEnumArgumentException();
             }
