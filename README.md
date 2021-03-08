@@ -1,6 +1,6 @@
 # libc.hwid
 ## C# cross platform hardware ID generator
-### Unique hardware ID generator for protecting your distributed .net software (Ubuntu & Windows)
+### Unique hardware ID generator for protecting your distributed .net software (Ubuntu, Windows & Mac OS Big Sur)
 
 ### Why we need this?
 - We want to distribute a software and we worry about possible copyright violations.
@@ -22,6 +22,7 @@
 - Windows 8
 - Windows 8.1
 - Windows 10
+- MacOS Big Sur
 
 ### Usage:
 The nuget package is written as a __.Net Standard 2.0__ class library, so you can use it in the following project types:
