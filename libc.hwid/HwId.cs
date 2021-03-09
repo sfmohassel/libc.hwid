@@ -5,23 +5,29 @@ using System.Linq;
 using System.Management;
 using System.Security.Cryptography;
 using System.Text;
-namespace libc.hwid {
-    public static class HwId {
-        private enum Hardware {
+namespace libc.hwid
+{
+    public static class HwId
+    {
+        private enum Hardware
+        {
             Motherboard,
-            CPUID
+            Cpuid
         }
-        public static string Generate() {
+        public static string Generate()
+        {
             var res = new[] {
-                getInfo(Hardware.CPUID),
-                getInfo(Hardware.Motherboard)
+                GetInfo(Hardware.Cpuid),
+                GetInfo(Hardware.Motherboard)
             };
             var input = string.Join("\n", res);
-            var result = hash(input);
+            var result = Hash(input);
             return result;
         }
-        private static string hash(string input) {
-            using (var sha1 = new SHA1Managed()) {
+        private static string Hash(string input)
+        {
+            using (var sha1 = new SHA1Managed())
+            {
                 var hash = sha1.ComputeHash(Encoding.UTF8.GetBytes(input));
                 var sb = new StringBuilder(hash.Length * 2);
                 foreach (var b in hash) // can be "x2" if you want lowercase
@@ -29,30 +35,38 @@ namespace libc.hwid {
                 return sb.ToString();
             }
         }
-        private static string wmi(string wmiClass, string wmiProperty) {
+        private static string Wmi(string wmiClass, string wmiProperty)
+        {
             var result = "";
             var mc = new ManagementClass(wmiClass);
             var moc = mc.GetInstances();
-            foreach (var o in moc) {
-                var mo = (ManagementObject) o;
+            foreach (var o in moc)
+            {
+                var mo = (ManagementObject)o;
                 //Only get the first one
-                if (result == "")
-                    try {
-                        result = mo[wmiProperty].ToString();
-                        break;
-                    } catch {
-                        // ignored
-                    }
+                if (result != "") 
+                    continue;
+                try
+                {
+                    result = mo[wmiProperty].ToString();
+                    break;
+                }
+                catch
+                {
+                    // ignored
+                }
             }
             return result;
         }
-        private static string dmidecode(string query, string find) {
+        private static string Dmidecode(string query, string find)
+        {
             var cmd = new Cmd();
-            var k = cmd.Run("/usr/bin/sudo", $" {query}", new CmdOptions {
+            var k = cmd.Run("/usr/bin/sudo", $" {query}", new CmdOptions
+            {
                 WindowStyle = ProcessWindowStyle.Hidden,
                 CreateNoWindow = true,
                 RedirectStdOut = true,
-                UseOSShell = false
+                UseOsShell = false
             }, true);
             find = find.EndsWith(":") ? find : $"{find}:";
             var lines = k.Output.Split(new[] {
@@ -63,10 +77,10 @@ namespace libc.hwid {
             var res = line.Substring(line.IndexOf(find, StringComparison.Ordinal) + find.Length).Trim(' ', '\t');
             return res;
         }
-        public static string GetIoregOutput(string node)
+        private static string GetIoregOutput(string node)
         {
-            Process proc = new Process();
-            ProcessStartInfo psi = new ProcessStartInfo
+            var proc = new Process();
+            var psi = new ProcessStartInfo
             {
                 FileName = "/bin/sh"
             };
@@ -78,40 +92,43 @@ namespace libc.hwid {
             string result = null;
             proc.StartInfo = psi;
 
-            proc.OutputDataReceived += new DataReceivedEventHandler((s, e) => {
-                if (!String.IsNullOrEmpty(e.Data))
+            proc.OutputDataReceived += (s, e) =>
+            {
+                if (!string.IsNullOrEmpty(e.Data))
                     result = e.Data;
-            });
+            };
 
             proc.Start();
             proc.BeginOutputReadLine();
             proc.WaitForExit();
             return result;
         }
-        private static string getInfo(Hardware hw)
+        private static string GetInfo(Hardware hw)
         {
             switch (hw)
             {
                 case Hardware.Motherboard when AppInfo.IsLinux:
                     {
-                        var result = dmidecode("dmidecode -t 2", "Manufacturer");
+                        var result = Dmidecode("dmidecode -t 2", "Manufacturer");
                         return result;
                     }
                 case Hardware.Motherboard when AppInfo.IsWindows:
-                    return wmi("Win32_BaseBoard", "Manufacturer");
-                case Hardware.Motherboard when AppInfo.IsMacOS:
+                    return Wmi("Win32_BaseBoard", "Manufacturer");
+                case Hardware.Motherboard when AppInfo.IsMacOs:
                     var macSerial = GetIoregOutput("IOPlatformSerialNumber");
                     return macSerial;
-                case Hardware.CPUID when AppInfo.IsLinux:
+                case Hardware.Cpuid when AppInfo.IsLinux:
                     {
-                        var res = dmidecode("dmidecode -t 4", "ID");
+                        var res = Dmidecode("dmidecode -t 4", "ID");
                         var parts = res.Split(' ').Reverse();
                         var result = string.Join("", parts);
                         return result;
                     }
-                case Hardware.CPUID when AppInfo.IsWindows:
-                    return wmi("Win32_Processor", "ProcessorId");
-                case Hardware.CPUID when AppInfo.IsMacOS:
+                case Hardware.Cpuid when AppInfo.IsWindows:
+                    // We try by asm but fallback with wmi if it fails.
+                    var asmCpuId = Helpers.Asm.GetProcessorId();
+                    return asmCpuId?.Length > 2 ? asmCpuId : Wmi("Win32_Processor", "ProcessorId");
+                case Hardware.Cpuid when AppInfo.IsMacOs:
                     var uuid = GetIoregOutput("IOPlatformUUID");
                     return uuid;
                 default:
