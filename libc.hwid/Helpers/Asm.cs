@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Runtime.InteropServices;
-using System.Security;
-using System.Text;
 
 namespace libc.hwid.Helpers
 {
@@ -16,28 +12,23 @@ namespace libc.hwid.Helpers
         [return: MarshalAs(UnmanagedType.Bool)]
         [DllImport("kernel32", CharSet = CharSet.Unicode, SetLastError = true)] public static extern bool VirtualProtect([In] byte[] bytes, IntPtr size, int newProtect, out int oldProtect);
 
-        const int PAGE_EXECUTE_READWRITE = 0x40;
+        private const int PageExecuteReadwrite = 0x40;
 
         public static string GetProcessorId()
         {
-            byte[] sn = new byte[8];
+            var sn = new byte[8];
 
-            if (!ExecuteCode(ref sn))
-                return "ND";
-
-            return string.Format("{0}{1}", BitConverter.ToUInt32(sn, 4).ToString("X8"), BitConverter.ToUInt32(sn, 0).ToString("X8"));
+            return !ExecuteCode(ref sn) ? "ND" : $"{BitConverter.ToUInt32(sn, 4):X8}{BitConverter.ToUInt32(sn, 0):X8}";
         }
 
         private static bool ExecuteCode(ref byte[] result)
         {
-            int num;
-
             /* The opcodes below implement a C function with the signature:
              * __stdcall CpuIdWindowProc(hWnd, Msg, wParam, lParam);
              * with wParam interpreted as a pointer pointing to an 8 byte unsigned character buffer.
              * */
 
-            byte[] code_x86 = new byte[] {
+            byte[] codeX86 = {
                 0x55,                      /* push ebp */
                 0x89, 0xe5,                /* mov  ebp, esp */
                 0x57,                      /* push edi */
@@ -54,7 +45,7 @@ namespace libc.hwid.Helpers
                 0x5d,                      /* pop  ebp */
                 0xc2, 0x10, 0x00,          /* ret  0x10 */
             };
-            byte[] code_x64 = new byte[] {
+            byte[] codeX64 = {
                 0x53,                                     /* push rbx */
                 0x48, 0xc7, 0xc0, 0x01, 0x00, 0x00, 0x00, /* mov rax, 0x1 */
                 0x0f, 0xa2,                               /* cpuid */
@@ -64,11 +55,11 @@ namespace libc.hwid.Helpers
                 0xc3,                                     /* ret */
             };
 
-            byte[] asmCode = IsX64Process() ? ref code_x64 : ref code_x86;
+            var asmCode = IsX64Process() ? ref codeX64 : ref codeX86;
 
-            IntPtr ptr = new IntPtr(asmCode.Length);
+            var ptr = new IntPtr(asmCode.Length);
 
-            if (!VirtualProtect(asmCode, ptr, PAGE_EXECUTE_READWRITE, out num))
+            if (!VirtualProtect(asmCode, ptr, PageExecuteReadwrite, out _))
                 Marshal.ThrowExceptionForHR(Marshal.GetHRForLastWin32Error());
 
             ptr = new IntPtr(result.Length);

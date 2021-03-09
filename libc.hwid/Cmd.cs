@@ -11,7 +11,7 @@ namespace libc.hwid {
                     CreateNoWindow = o.CreateNoWindow,
                     WindowStyle = o.WindowStyle,
                     RedirectStandardOutput = o.RedirectStdOut,
-                    UseShellExecute = o.UseOSShell,
+                    UseShellExecute = o.UseOsShell,
                     WorkingDirectory = o.WorkingDirectory
                 }
             };
@@ -57,24 +57,24 @@ namespace libc.hwid {
         public CmdOptions(bool useOsShell = false, bool createNoWindow = true,
             ProcessWindowStyle windowStyle = ProcessWindowStyle.Hidden, bool redirectStdOut = true)
             : this() {
-            UseOSShell = useOsShell;
+            UseOsShell = useOsShell;
             CreateNoWindow = createNoWindow;
             WindowStyle = windowStyle;
             RedirectStdOut = redirectStdOut;
         }
         public static CmdOptions Default { get; }
-        public bool UseOSShell { get; set; }
+        public bool UseOsShell { get; set; }
         public bool CreateNoWindow { get; set; } = true;
         public ProcessWindowStyle WindowStyle { get; set; } = ProcessWindowStyle.Hidden;
         public bool RedirectStdOut { get; set; } = true;
         /// <summary>
-        ///     When the <see cref="UseOSShell"></see> property is false, gets or sets the working directory for the process
-        ///     to be started. When <see cref="UseOSShell"></see> is true, gets or sets the directory that contains the process to
+        ///     When the <see cref="UseOsShell"></see> property is false, gets or sets the working directory for the process
+        ///     to be started. When <see cref="UseOsShell"></see> is true, gets or sets the directory that contains the process to
         ///     be started.
         /// </summary>
         /// <returns>
-        ///     When <see cref="UseOSShell"></see> is true, the fully qualified name of the directory that contains the
-        ///     process to be started. When the <see cref="UseOSShell"></see> property is false, the working directory for the
+        ///     When <see cref="UseOsShell"></see> is true, the fully qualified name of the directory that contains the
+        ///     process to be started. When the <see cref="UseOsShell"></see> property is false, the working directory for the
         ///     process to be started. The default is an empty string ("").
         /// </returns>
         public string WorkingDirectory { get; set; }

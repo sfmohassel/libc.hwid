@@ -12,19 +12,19 @@ namespace libc.hwid
         private enum Hardware
         {
             Motherboard,
-            CPUID
+            Cpuid
         }
         public static string Generate()
         {
             var res = new[] {
-                getInfo(Hardware.CPUID),
-                getInfo(Hardware.Motherboard)
+                GetInfo(Hardware.Cpuid),
+                GetInfo(Hardware.Motherboard)
             };
             var input = string.Join("\n", res);
-            var result = hash(input);
+            var result = Hash(input);
             return result;
         }
-        private static string hash(string input)
+        private static string Hash(string input)
         {
             using (var sha1 = new SHA1Managed())
             {
@@ -35,7 +35,7 @@ namespace libc.hwid
                 return sb.ToString();
             }
         }
-        private static string wmi(string wmiClass, string wmiProperty)
+        private static string Wmi(string wmiClass, string wmiProperty)
         {
             var result = "";
             var mc = new ManagementClass(wmiClass);
@@ -44,20 +44,21 @@ namespace libc.hwid
             {
                 var mo = (ManagementObject)o;
                 //Only get the first one
-                if (result == "")
-                    try
-                    {
-                        result = mo[wmiProperty].ToString();
-                        break;
-                    }
-                    catch
-                    {
-                        // ignored
-                    }
+                if (result != "") 
+                    continue;
+                try
+                {
+                    result = mo[wmiProperty].ToString();
+                    break;
+                }
+                catch
+                {
+                    // ignored
+                }
             }
             return result;
         }
-        private static string dmidecode(string query, string find)
+        private static string Dmidecode(string query, string find)
         {
             var cmd = new Cmd();
             var k = cmd.Run("/usr/bin/sudo", $" {query}", new CmdOptions
@@ -65,7 +66,7 @@ namespace libc.hwid
                 WindowStyle = ProcessWindowStyle.Hidden,
                 CreateNoWindow = true,
                 RedirectStdOut = true,
-                UseOSShell = false
+                UseOsShell = false
             }, true);
             find = find.EndsWith(":") ? find : $"{find}:";
             var lines = k.Output.Split(new[] {
@@ -78,8 +79,8 @@ namespace libc.hwid
         }
         private static string GetIoregOutput(string node)
         {
-            Process proc = new Process();
-            ProcessStartInfo psi = new ProcessStartInfo
+            var proc = new Process();
+            var psi = new ProcessStartInfo
             {
                 FileName = "/bin/sh"
             };
@@ -91,43 +92,43 @@ namespace libc.hwid
             string result = null;
             proc.StartInfo = psi;
 
-            proc.OutputDataReceived += new DataReceivedEventHandler((s, e) =>
+            proc.OutputDataReceived += (s, e) =>
             {
-                if (!String.IsNullOrEmpty(e.Data))
+                if (!string.IsNullOrEmpty(e.Data))
                     result = e.Data;
-            });
+            };
 
             proc.Start();
             proc.BeginOutputReadLine();
             proc.WaitForExit();
             return result;
         }
-        private static string getInfo(Hardware hw)
+        private static string GetInfo(Hardware hw)
         {
             switch (hw)
             {
                 case Hardware.Motherboard when AppInfo.IsLinux:
                     {
-                        var result = dmidecode("dmidecode -t 2", "Manufacturer");
+                        var result = Dmidecode("dmidecode -t 2", "Manufacturer");
                         return result;
                     }
                 case Hardware.Motherboard when AppInfo.IsWindows:
-                    return wmi("Win32_BaseBoard", "Manufacturer");
-                case Hardware.Motherboard when AppInfo.IsMacOS:
+                    return Wmi("Win32_BaseBoard", "Manufacturer");
+                case Hardware.Motherboard when AppInfo.IsMacOs:
                     var macSerial = GetIoregOutput("IOPlatformSerialNumber");
                     return macSerial;
-                case Hardware.CPUID when AppInfo.IsLinux:
+                case Hardware.Cpuid when AppInfo.IsLinux:
                     {
-                        var res = dmidecode("dmidecode -t 4", "ID");
+                        var res = Dmidecode("dmidecode -t 4", "ID");
                         var parts = res.Split(' ').Reverse();
                         var result = string.Join("", parts);
                         return result;
                     }
-                case Hardware.CPUID when AppInfo.IsWindows:
+                case Hardware.Cpuid when AppInfo.IsWindows:
                     // We try by asm but fallback with wmi if it fails.
-                    var asmCpuId = libc.hwid.Helpers.Asm.GetProcessorId();
-                    return asmCpuId?.Length > 2 ? asmCpuId : wmi("Win32_Processor", "ProcessorId");
-                case Hardware.CPUID when AppInfo.IsMacOS:
+                    var asmCpuId = Helpers.Asm.GetProcessorId();
+                    return asmCpuId?.Length > 2 ? asmCpuId : Wmi("Win32_Processor", "ProcessorId");
+                case Hardware.Cpuid when AppInfo.IsMacOs:
                     var uuid = GetIoregOutput("IOPlatformUUID");
                     return uuid;
                 default:
