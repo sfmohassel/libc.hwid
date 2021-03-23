@@ -25,8 +25,9 @@
 - MacOS Big Sur
 
 ### Usage:
-The nuget package is written as a __.Net Standard 2.0__ class library, so you can use it in the following project types:
+The nuget package is written as a __.Net Standard 2.0__ & __.Net 5.0__ class library, so you can use it in the following project types:
 - .Net Standard 2.0+
+- .Net 5.0
 - .Net Core 2.0+
 - .Net Framework 4.6.1+
 
