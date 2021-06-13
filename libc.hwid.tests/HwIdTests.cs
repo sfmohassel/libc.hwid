@@ -1,9 +1,13 @@
 using System;
 using Xunit;
-namespace libc.hwid.tests {
-    public class HwIdTests {
+
+namespace libc.hwid.tests
+{
+    public class HwIdTests
+    {
         [Fact]
-        public void Generate() {
+        public void Generate()
+        {
             var hardwareId1 = HwId.Generate();
             Assert.True(hardwareId1.Length == 40);
 
