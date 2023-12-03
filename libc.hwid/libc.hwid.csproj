@@ -6,7 +6,7 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Authors>Saeid Farahi Mohassel</Authors>
     <Product>Hardware ID generator for linux and windows systems</Product>
-    <RepositoryUrl>https://github.com/saeidjoker/libc.hwid</RepositoryUrl>
+    <RepositoryUrl>https://github.com/sfmohassel/libc.hwid</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
