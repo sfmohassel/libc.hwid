@@ -14,13 +14,16 @@ namespace libc.hwid
 {
     public static class HwId
     {
-        public static string Generate(HashAlgorithm hashAlgo = null, bool includeMAC = false, bool disposeHashAlgo = true)
+        public static string Generate()
+            => Generate(false, null, true);
+
+        public static string Generate(bool includeMAC, HashAlgorithm hashAlgo = null, bool disposeHashAlgo = true)
         {
             try
             {
                 if (hashAlgo is null)
                 {
-                    hashAlgo = new SHA1Managed();
+                    hashAlgo = SHA1.Create();
                     disposeHashAlgo = true; // Since we're creating it locally, we have to dispose it
                 }
 
