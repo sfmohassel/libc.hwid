@@ -1,8 +1,11 @@
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Management;
+using System.Net.NetworkInformation;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using libc.hwid.Helpers;
@@ -12,30 +15,33 @@ namespace libc.hwid
     public static class HwId
     {
         public static string Generate()
+            => Generate(false, null, true);
+
+        public static string Generate(bool includeMAC, HashAlgorithm hashAlgo = null, bool disposeHashAlgo = true)
         {
-            var res = new[]
+            try
             {
-                GetInfo(Hardware.Cpuid),
-                GetInfo(Hardware.Motherboard)
-            };
+                if (hashAlgo is null)
+                {
+                    hashAlgo = SHA1.Create();
+                    disposeHashAlgo = true; // Since we're creating it locally, we have to dispose it
+                }
 
-            var input = string.Join("\n", res);
-            var result = Hash(input);
+                using (MemoryStream ms = new MemoryStream(512))
+                {
+                    GetCpuInfo(ms);
+                    GetMotherboardInfo(ms);
+                    if (includeMAC)
+                        GetMacInfo(ms);
 
-            return result;
-        }
-
-        private static string Hash(string input)
-        {
-            using (var sha1 = new SHA1Managed())
+                    ms.Position = 0;
+                    return ByteArrayToHexViaLookup32(hashAlgo.ComputeHash(ms));
+                }
+            }
+            finally
             {
-                var hash = sha1.ComputeHash(Encoding.UTF8.GetBytes(input));
-                var sb = new StringBuilder(hash.Length * 2);
-
-                foreach (var b in hash) // can be "x2" if you want lowercase
-                    sb.Append(b.ToString("X2"));
-
-                return sb.ToString();
+                if (disposeHashAlgo)
+                    hashAlgo.Dispose();
             }
         }
 
@@ -56,7 +62,6 @@ namespace libc.hwid
                 try
                 {
                     result = mo[wmiProperty].ToString();
-
                     break;
                 }
                 catch
@@ -68,6 +73,7 @@ namespace libc.hwid
             return result;
         }
 
+        private readonly static string[] separators = { Environment.NewLine };
         private static string Dmidecode(string query, string find)
         {
             var cmd = new Cmd();
@@ -82,11 +88,7 @@ namespace libc.hwid
 
             find = find.EndsWith(":") ? find : $"{find}:";
 
-            var lines = k.Output.Split(new[]
-                {
-                    Environment.NewLine
-                }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(a => a.Trim(' ', '\t'));
+            var lines = k.Output.Split(separators, StringSplitOptions.RemoveEmptyEntries).Select(a => a.Trim(' ', '\t'));
 
             var line = lines.First(a => a.StartsWith(find));
             var res = line.Substring(line.IndexOf(find, StringComparison.Ordinal) + find.Length).Trim(' ', '\t');
@@ -126,48 +128,96 @@ namespace libc.hwid
             return result;
         }
 
-        private static string GetInfo(Hardware hw)
+        private static void GetCpuInfo(MemoryStream ms)
         {
-            switch (hw)
+            if (AppInfo.IsLinux)
             {
-                case Hardware.Motherboard when AppInfo.IsLinux:
-                {
-                    var result = Dmidecode("dmidecode -t 2", "Manufacturer");
-
-                    return result;
-                }
-                case Hardware.Motherboard when AppInfo.IsWindows:
-                    return Wmi("Win32_BaseBoard", "Manufacturer");
-                case Hardware.Motherboard when AppInfo.IsMacOs:
-                    var macSerial = GetIoregOutput("IOPlatformSerialNumber");
-
-                    return macSerial;
-                case Hardware.Cpuid when AppInfo.IsLinux:
-                {
-                    var res = Dmidecode("dmidecode -t 4", "ID");
-                    var parts = res.Split(' ').Reverse();
-                    var result = string.Join("", parts);
-
-                    return result;
-                }
-                case Hardware.Cpuid when AppInfo.IsWindows:
-                    // We try by asm but fallback with wmi if it fails.
-                    var asmCpuId = Asm.GetProcessorId();
-
-                    return asmCpuId?.Length > 2 ? asmCpuId : Wmi("Win32_Processor", "ProcessorId");
-                case Hardware.Cpuid when AppInfo.IsMacOs:
-                    var uuid = GetIoregOutput("IOPlatformUUID");
-
-                    return uuid;
-                default:
-                    throw new InvalidEnumArgumentException();
+                var res = Dmidecode("dmidecode -t 4", "ID");
+                var parts = res.Split(' ').Reverse();
+                var result = string.Join("", parts);
+                ms.Write(Encoding.UTF8.GetBytes(result), 0, result.Length);
             }
+            else if (AppInfo.IsWindows)
+            {
+                // We try by asm but fallback with wmi if it fails.
+                var asmCpuId = Asm.GetProcessorId();
+                if (asmCpuId is null)
+                {
+                    var cpuId = Wmi("Win32_Processor", "ProcessorId");
+                    ms.Write(Encoding.UTF8.GetBytes(cpuId), 0, cpuId.Length);
+                }
+                else
+                {
+                    ms.Write(asmCpuId, 4, 4);
+                    ms.Write(asmCpuId, 0, 4);
+                }
+            }
+            else if (AppInfo.IsMacOs)
+            {
+                var uuid = GetIoregOutput("IOPlatformUUID");
+                ms.Write(Encoding.UTF8.GetBytes(uuid), 0, uuid.Length);
+            }
+            else
+                throw new PlatformNotSupportedException();
         }
 
-        private enum Hardware
+        private static void GetMacInfo(MemoryStream ms)
         {
-            Motherboard,
-            Cpuid
+            var macAddr =
+            (
+                from nic in NetworkInterface.GetAllNetworkInterfaces()
+                where nic.OperationalStatus == OperationalStatus.Up
+                select nic.GetPhysicalAddress().GetAddressBytes()
+            ).FirstOrDefault();
+
+            ms.Write(macAddr, 0, macAddr.Length);
+        }
+
+        private static void GetMotherboardInfo(MemoryStream ms)
+        {
+            if (AppInfo.IsLinux)
+            {
+                var result = Dmidecode("dmidecode -t 2", "Manufacturer");
+                ms.Write(Encoding.UTF8.GetBytes(result), 0, result.Length);
+            }
+            else if (AppInfo.IsWindows)
+            {
+                var motherboardId = Wmi("Win32_BaseBoard", "Manufacturer");
+                ms.Write(Encoding.UTF8.GetBytes(motherboardId), 0, motherboardId.Length);
+            }
+            else if (AppInfo.IsMacOs)
+            {
+                var macSerial = GetIoregOutput("IOPlatformSerialNumber");
+                ms.Write(Encoding.UTF8.GetBytes(macSerial), 0, macSerial.Length);
+            }
+            else
+                throw new PlatformNotSupportedException();
+        }
+
+        private static readonly uint[] _lookup32 = CreateLookup32();
+
+        private static uint[] CreateLookup32()
+        {
+            var result = new uint[256];
+            for (int i = 0; i < 256; i++)
+            {
+                string s = i.ToString("X2");
+                result[i] = ((uint)s[0]) + ((uint)s[1] << 16);
+            }
+            return result;
+        }
+
+        private static string ByteArrayToHexViaLookup32(byte[] bytes)
+        {
+            var lookup32 = _lookup32;
+            var result = new char[bytes.Length * 2];
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                var val = lookup32[bytes[i]];
+                result[2 * i] = (char)val;
+                result[2 * i + 1] = (char)(val >> 16);
+            }
+            return new string(result);
         }
     }
 }
