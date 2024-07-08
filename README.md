@@ -12,7 +12,7 @@
 
 ### Considerations:
 - So called __Hardware ID__, created with `HwId.Generate()` method, will return the same value on a computer system as long as the _mother board_ and _CPU_ __do not change__
-- This library does not use _Mac address_ by default (but can be argumented to do so) since the value returned from WMI on Microsoft Windows will change if the computer's network connection is lost or disabled.
+- This library does not use _Mac address_ since the value returned from WMI on Microsoft Windows will change if the computer's network connection is lost or disabled.
 
 ### I've used this piece of code in my projects on the following operating systems:
 - Ubuntu 16.04
