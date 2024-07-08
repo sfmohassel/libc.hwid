@@ -17,10 +17,11 @@ namespace libc.hwid.Helpers
         [DllImport("kernel32", CharSet = CharSet.Unicode, SetLastError = true)]
         public static extern bool VirtualProtect([In] byte[] bytes, IntPtr size, int newProtect, out int oldProtect);
 
-        public static byte[] GetProcessorId()
+        public static string GetProcessorId()
         {
             var sn = new byte[8];
-            return !ExecuteCode(ref sn) ? null : sn;
+
+            return !ExecuteCode(ref sn) ? "ND" : $"{BitConverter.ToUInt32(sn, 4):X8}{BitConverter.ToUInt32(sn, 0):X8}";
         }
 
         private static bool ExecuteCode(ref byte[] result)
