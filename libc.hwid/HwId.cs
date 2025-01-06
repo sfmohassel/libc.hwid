@@ -2,10 +2,10 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
-using System.Management;
 using System.Security.Cryptography;
 using System.Text;
 using libc.hwid.Helpers;
+using WmiLight;
 
 namespace libc.hwid
 {
@@ -42,26 +42,31 @@ namespace libc.hwid
         private static string Wmi(string wmiClass, string wmiProperty)
         {
             var result = "";
-            var mc = new ManagementClass(wmiClass);
-            var moc = mc.GetInstances();
-
-            foreach (var o in moc)
+            using (var mc = new WmiConnection())
             {
-                var mo = (ManagementObject) o;
+                // Create the query for the WMI class and property
+                var query = $"SELECT {wmiProperty} FROM {wmiClass}";
+    
+                // Execute the query and retrieve instances
+                var moc = mc.CreateQuery(query);
 
-                //Only get the first one
-                if (result != "")
-                    continue;
-
-                try
+                foreach (var mo in moc)
                 {
-                    result = mo[wmiProperty].ToString();
+                    // Only get the first one (same as the original code)
+                    if (!string.IsNullOrEmpty(result))
+                        continue;
 
-                    break;
-                }
-                catch
-                {
-                    // ignored
+                    try
+                    {
+                        // Access the property value and set the result
+                        result = mo[wmiProperty]?.ToString();
+
+                        break; // Exit after the first result (matching the original code)
+                    }
+                    catch
+                    {
+                        // Ignored in case of an error retrieving the property
+                    }
                 }
             }
 

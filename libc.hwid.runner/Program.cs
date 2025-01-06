@@ -3,13 +3,13 @@ using System.IO;
 
 namespace libc.hwid.runner
 {
-    internal class Program
+  internal static class Program
+  {
+    private static void Main(string[] args)
     {
-        private static void Main(string[] args)
-        {
-            var hwid = HwId.Generate();
-            Console.WriteLine(hwid);
-            File.WriteAllText("./key.txt", hwid);
-        }
+      var hwid = HwId.Generate();
+      Console.WriteLine(hwid);
+      File.WriteAllText("./key.txt", hwid);
     }
+  }
 }
